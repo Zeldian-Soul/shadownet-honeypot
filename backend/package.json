@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "geoip-lite": "^1.2.2",
     "leaflet": "^1.9.4",

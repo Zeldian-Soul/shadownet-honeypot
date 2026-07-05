@@ -1,1 +1,12 @@
-node_modules/
+/node_modules
+backend/node_modules/
+frontend/node_modules/
+
+# Environment secrets
+backend/.env
+.env
+
+# Mobile build/Expo artifacts
+.expo/
+dist/
+frontend/dist/

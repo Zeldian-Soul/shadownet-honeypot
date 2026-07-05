@@ -1,3 +1,4 @@
+require('dotenv').config();
 // ==========================================
 // SHADOWNET: ENTERPRISE HONEYPOT & COMMAND CENTER
 // ==========================================
@@ -13,10 +14,10 @@ const crypto = require('crypto');
 // 1. DATABASE CONFIGURATION
 // ==========================================
 const pool = new Pool({
-    user: 'postgres',
+    user: process.env.DB_USER || 'shadow_logger',
+    password: process.env.DB_PASSWORD,
     host: '127.0.0.1',
     database: 'shadownet',
-    password: process.env.DB_PASSWORD || 'Life@123', // Update if necessary
     port: 5433,
 });
 
@@ -26,19 +27,29 @@ const pool = new Pool({
 const { Telegraf } = require('telegraf');
 
 // 🛑 PASTE YOUR BOTFATHER TOKEN HERE:
-const TELEGRAM_TOKEN = '8668060765:AAHoNVMC-KddPBaeUIBWXCAigaDuMwGNAlU'; 
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 
-let ADMIN_CHAT_ID = null; 
+if (!TELEGRAM_TOKEN) {
+    console.error("❌ ERROR: TELEGRAM_TOKEN is missing from your .env file!");
+    process.exit(1); // Stop the server if the token isn't configured
+}
+
+const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
+
+if (!ADMIN_CHAT_ID) {
+    console.error("❌ ERROR: ADMIN_CHAT_ID is missing from your .env file!");
+    process.exit(1); // Stop the server if the ID isn't configured
+} 
 
 // Initialize the modern bot engine
 const bot = new Telegraf(TELEGRAM_TOKEN);
 
 // Listen for the /start command from your phone
-bot.start((ctx) => {
-    ADMIN_CHAT_ID = ctx.chat.id;
-    console.log(`\n🔔 TELEGRAM LINKED! Your Chat ID is: ${ADMIN_CHAT_ID}`);
-    ctx.reply(`🛡️ ShadowNet Command Center Uplink Established.\nAwaiting network intrusions...`);
-});
+// bot.start((ctx) => {
+//     ADMIN_CHAT_ID = ctx.chat.id;
+//     console.log(`\n🔔 TELEGRAM LINKED! Your Chat ID is: ${ADMIN_CHAT_ID}`);
+//     ctx.reply(`🛡️ ShadowNet Command Center Uplink Established.\nAwaiting network intrusions...`);
+// });
 
 // Launch the bot background process
 bot.launch();
@@ -207,7 +218,6 @@ async function processBanQueue() {
 }
 
 // High-Interaction Decoy Listener
-// High-Interaction Decoy Listener
 function createDecoyListener(port) {
     const server = net.createServer((socket) => {
         const attackerIp = socket.remoteAddress;
@@ -226,9 +236,12 @@ function createDecoyListener(port) {
         let interactionCount = 0;
 
         socket.on('data', async (data) => {
-            const payload = data.toString().trim();
+            let payload = data.toString().trim();
+            if (payload.length > 500) {
+                payload = payload.substring(0, 500) + '... [PAYLOAD TRUNCATED]';
+            }
             if (!payload) return;
-
+            
             interactionCount++;
 
             // 🧬 INJECT SESSION ID INTO SHAKTIDB
@@ -243,6 +256,7 @@ function createDecoyListener(port) {
 
             // Interactive Fake Shell Logic
             if (interactionCount === 1) {
+                sendAlert(`🚨 *SHADOWNET ALERT*\n\nImmediate payload dropped!\n📍 IP: \`${attackerIp}\`\n😈 Payload: \`${payload}\``);
                 socket.write('Password: ');
             } else if (interactionCount === 2) {
                 socket.write('\r\nWelcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-101-generic x86_64)\r\nLast login: Mon from 192.168.1.44\r\nroot@ubuntu:~# ');
