@@ -6,7 +6,8 @@ const { Pool } = require('pg');
 const { exec } = require('child_process');
 const express = require('express');
 const cors = require('cors');
-const geoip = require('geoip-lite'); 
+const geoip = require('geoip-lite');
+const crypto = require('crypto');
 
 // ==========================================
 // 1. DATABASE CONFIGURATION
@@ -15,9 +16,40 @@ const pool = new Pool({
     user: 'postgres',
     host: '127.0.0.1',
     database: 'shadownet',
-    password: process.env.DB_PASSWORD || 'YOUR_DATABASE_PASSWORD_HERE', // Update if necessary
+    password: process.env.DB_PASSWORD || 'Life@123', // Update if necessary
     port: 5433,
 });
+
+// ==========================================
+// 1.5 TELEGRAM ALERT SYSTEM (Telegraf Engine)
+// ==========================================
+const { Telegraf } = require('telegraf');
+
+// 🛑 PASTE YOUR BOTFATHER TOKEN HERE:
+const TELEGRAM_TOKEN = '8668060765:AAHoNVMC-KddPBaeUIBWXCAigaDuMwGNAlU'; 
+
+let ADMIN_CHAT_ID = null; 
+
+// Initialize the modern bot engine
+const bot = new Telegraf(TELEGRAM_TOKEN);
+
+// Listen for the /start command from your phone
+bot.start((ctx) => {
+    ADMIN_CHAT_ID = ctx.chat.id;
+    console.log(`\n🔔 TELEGRAM LINKED! Your Chat ID is: ${ADMIN_CHAT_ID}`);
+    ctx.reply(`🛡️ ShadowNet Command Center Uplink Established.\nAwaiting network intrusions...`);
+});
+
+// Launch the bot background process
+bot.launch();
+
+// Helper function to send alerts safely
+function sendAlert(message) {
+    if (ADMIN_CHAT_ID) {
+        bot.telegram.sendMessage(ADMIN_CHAT_ID, message, { parse_mode: 'Markdown' })
+           .catch(err => console.error('Telegram alert failed:', err.message));
+    }
+}
 
 // ==========================================
 // 2. EXPRESS COMMAND CENTER API
@@ -26,25 +58,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Geolocation Engine with Localhost Tarpit Mapping
-function locateIp(ip) {
-    // If it's a local testing loop, generate highly realistic global threat metrics
+// Dynamic Geolocation Engine
+async function locateIp(ip) {
+    let targetIp = ip;
+
+    // If local test, dynamically fetch your REAL public IP from the internet
     if (ip === '127.0.0.1' || ip === '::ffff:127.0.0.1' || ip === '::1') {
-        const mockLocations = [
-            { country: 'US', city: 'Ashburn', ll: [39.0437, -77.4875] },
-            { country: 'CN', city: 'Beijing', ll: [39.9042, 116.4074] },
-            { country: 'NL', city: 'Amsterdam', ll: [52.3676, 4.9041] },
-            { country: 'DE', city: 'Frankfurt', ll: [50.1109, 8.6821] },
-            { country: 'RU', city: 'Moscow', ll: [55.7558, 37.6173] }
-        ];
-        return mockLocations[Math.floor(Math.random() * mockLocations.length)];
+        try {
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            targetIp = data.ip; 
+        } catch (err) {
+            console.error("Could not fetch public IP. Falling back to unknown.");
+        }
     }
     
-    const geo = geoip.lookup(ip);
+    // Look up the real public IP in the local database
+    const geo = geoip.lookup(targetIp);
     if (geo) {
         return {
             country: geo.country,
-            city: geo.city || 'Unknown Location',
+            city: geo.city || 'Unknown City',
             ll: geo.ll
         };
     }
@@ -55,15 +89,18 @@ function locateIp(ip) {
 app.get('/api/threats', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM intrusion_logs ORDER BY attack_timestamp DESC LIMIT 100');
-        const enrichedLogs = result.rows.map(log => {
-            const geoInfo = locateIp(log.attacker_ip);
+        
+        // Use Promise.all to handle the async geolocation lookups
+        const enrichedLogs = await Promise.all(result.rows.map(async (log) => {
+            const geoInfo = await locateIp(log.attacker_ip);
             return {
                 ...log,
                 country_code: geoInfo.country,
                 city: geoInfo.city,
                 coordinates: geoInfo.ll
             };
-        });
+        }));
+        
         res.json(enrichedLogs);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -87,10 +124,11 @@ app.get('/api/analytics', async (req, res) => {
         const ipResult = await pool.query('SELECT attacker_ip FROM intrusion_logs');
         const countryCounts = {};
         
-        ipResult.rows.forEach(row => {
-            const geo = locateIp(row.attacker_ip);
+        // Handle async lookups for analytics
+        await Promise.all(ipResult.rows.map(async (row) => {
+            const geo = await locateIp(row.attacker_ip);
             countryCounts[geo.country] = (countryCounts[geo.country] || 0) + 1;
-        });
+        }));
 
         const geoDistribution = Object.keys(countryCounts).map(country => ({
             country,
@@ -169,15 +207,17 @@ async function processBanQueue() {
 }
 
 // High-Interaction Decoy Listener
+// High-Interaction Decoy Listener
 function createDecoyListener(port) {
     const server = net.createServer((socket) => {
         const attackerIp = socket.remoteAddress;
+        const sessionId = crypto.randomUUID(); // 🧬 GENERATE UNIQUE SESSION ID FOR THIS ATTACK
         
         // Memory Protection: Kill dead connections after 15 seconds
         socket.setTimeout(15000);
         socket.on('timeout', () => socket.destroy());
 
-        console.log(`🚨 Alert! Connection attempt on port ${port} from IP: ${attackerIp}`);
+        console.log(`🚨 Alert! Connection attempt on port ${port} from IP: ${attackerIp} (Session: ${sessionId})`);
 
         // The Tarpit: Emulate a real server login sequence
         if (port === 2222) socket.write('SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1\r\n');
@@ -191,11 +231,11 @@ function createDecoyListener(port) {
 
             interactionCount++;
 
-            // Log interactions directly to ShaktiDB
+            // 🧬 INJECT SESSION ID INTO SHAKTIDB
             try {
                 await pool.query(
-                    `INSERT INTO intrusion_logs (attacker_ip, target_port, attempted_username) VALUES ($1, $2, $3)`,
-                    [attackerIp, port, payload]
+                    `INSERT INTO intrusion_logs (attacker_ip, target_port, attempted_username, session_id) VALUES ($1, $2, $3, $4)`,
+                    [attackerIp, port, payload, sessionId]
                 );
             } catch (dbErr) {
                 console.error('Database write error:', dbErr.message);
@@ -208,6 +248,11 @@ function createDecoyListener(port) {
                 socket.write('\r\nWelcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-101-generic x86_64)\r\nLast login: Mon from 192.168.1.44\r\nroot@ubuntu:~# ');
             } else {
                 console.log(`😈 Targeted Hacker Typing: "${payload}"`);
+
+                // 🚨 FIRE THE TELEGRAM ALERT!
+                if (interactionCount === 3) {
+                    sendAlert(`🚨 *SHADOWNET ALERT*\n\nTargeted human interaction detected!\n📍 IP: \`${attackerIp}\`\n💻 Port: \`${port}\`\n😈 First Command: \`${payload}\``);
+                }
                 
                 if (payload === 'exit' || payload === 'logout') {
                     socket.end('logout\r\n');
