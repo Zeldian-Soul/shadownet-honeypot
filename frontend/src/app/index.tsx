@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+// Removed unused React Native imports since you are using standard DOM elements (div, header, etc.)
 
 const API_BASE_URL = 'http://localhost:3000/api';
-
 
 // --- Interfaces ---
 interface PortDistribution { target_port: number; total_attacks: number; }
@@ -22,7 +22,7 @@ interface ThreatLog {
   country_code: string;
   city: string;
   session_id: string | null;
-  coordinates: [number, number]; // Added Session Tracking
+  coordinates: [number, number]; 
 }
 
 export default function WebCommandCenter() {
@@ -30,19 +30,12 @@ export default function WebCommandCenter() {
   const [logs, setLogs] = useState<ThreatLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   
-  
   const [activeTab, setActiveTab] = useState<'overview' | 'geo' | 'stream'>('overview');
-  
-  // UX State: Forensic Replay Modal
   const [replaySession, setReplaySession] = useState<string | null>(null);
-  
-  // 🗺️ NEW: Dynamic Map State
   const [MapLib, setMapLib] = useState<any>(null);
 
   useEffect(() => {
-    // Only run this inside the actual web browser (bypassing SSR)
     if (typeof window !== 'undefined') {
-      // 1. Safely inject Leaflet CSS
       if (!document.getElementById('leaflet-css')) {
         const link = document.createElement('link');
         link.id = 'leaflet-css';
@@ -51,11 +44,9 @@ export default function WebCommandCenter() {
         document.head.appendChild(link);
       }
 
-      // 2. Dynamically require the libraries
       const L = require('leaflet');
       const RL = require('react-leaflet');
 
-      // 3. Build the Cyber Icon
       const cyberIcon = L.divIcon({
         className: 'custom-cyber-icon',
         html: '<div style="background-color: #ff4444; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 12px #ff4444; border: 2px solid #222;"></div>',
@@ -63,7 +54,6 @@ export default function WebCommandCenter() {
         iconAnchor: [7, 7]
       });
 
-      // 4. Save to state so React can use them
       setMapLib({
         MapContainer: RL.MapContainer,
         TileLayer: RL.TileLayer,
@@ -115,15 +105,13 @@ export default function WebCommandCenter() {
 
   const maxAttackCount = Math.max(...analytics.timeline.map(t => t.attack_count), 1);
 
-  // Group logs by session for the Live Stream view
   const sessionGroups = logs.reduce((acc, log) => {
-    const key = log.session_id || log.attacker_ip; // Fallback for older logs without IDs
+    const key = log.session_id || log.attacker_ip; 
     if (!acc[key]) acc[key] = [];
     acc[key].push(log);
     return acc;
   }, {} as Record<string, ThreatLog[]>);
 
-  // Extract the specific logs for the active replay modal, sorted chronologically
   const activeReplayLogs = replaySession ? (sessionGroups[replaySession] || []).sort((a, b) => new Date(a.attack_timestamp).getTime() - new Date(b.attack_timestamp).getTime()) : [];
 
   const getTabStyle = (tabName: string) => ({
@@ -139,12 +127,28 @@ export default function WebCommandCenter() {
     outline: 'none'
   });
 
+  // --- THE MERGED RETURN BLOCK ---
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0a0a0a', color: '#fff', fontFamily: 'sans-serif' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0a0a0a', color: '#fff', fontFamily: 'sans-serif', position: 'relative' }}>
       
+      {/* --- FLOATING BRAND LOGO --- */}
+      <img 
+        src={require('../../assets/expo.icon/Assets/SNlogo_long.png')} 
+        alt="ShadowNet Logo"
+        style={{
+          top: '-20px',
+          position: 'absolute',
+          right: '30px',
+          width: '220px',
+          height: '160px',
+          objectFit: 'contain',
+          zIndex: 1100 
+        }}
+      />
+
       {/* --- FORENSIC REPLAY MODAL --- */}
       {replaySession && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '20px' }}>
           <div style={{ backgroundColor: '#111', border: '1px solid #ff4444', borderRadius: '6px', width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
             <div style={{ padding: '15px 20px', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: '#ff4444' }}>FORENSIC REPLAY: {activeReplayLogs[0]?.attacker_ip}</h3>
@@ -162,9 +166,9 @@ export default function WebCommandCenter() {
             </div>
             
             <div style={{ padding: '15px 20px', borderTop: '1px solid #333', textAlign: 'right' }}>
-               <button onClick={() => handleBan(activeReplayLogs[0]?.attacker_ip)} style={{ backgroundColor: '#ff4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+              <button onClick={() => handleBan(activeReplayLogs[0]?.attacker_ip)} style={{ backgroundColor: '#ff4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
                   ISOLATE THREAT (BAN IP)
-               </button>
+              </button>
             </div>
           </div>
         </div>
@@ -247,17 +251,17 @@ export default function WebCommandCenter() {
                   
                   {logs.map((log) => {
                     if (log.coordinates && log.coordinates.length === 2) {
-                       return (
-                         <MapLib.Marker key={log.id} position={[log.coordinates[0], log.coordinates[1]]} icon={MapLib.cyberIcon}>
-                           <MapLib.Popup>
-                             <div style={{ color: '#000', fontFamily: 'sans-serif' }}>
-                               <strong>IP: {log.attacker_ip}</strong><br/>
-                               📍 {log.city}, {log.country_code}<br/>
-                               🎯 Target Port: {log.target_port}
-                             </div>
-                           </MapLib.Popup>
-                         </MapLib.Marker>
-                       )
+                      return (
+                        <MapLib.Marker key={log.id} position={[log.coordinates[0], log.coordinates[1]]} icon={MapLib.cyberIcon}>
+                          <MapLib.Popup>
+                            <div style={{ color: '#000', fontFamily: 'sans-serif' }}>
+                              <strong>IP: {log.attacker_ip}</strong><br/>
+                              📍 {log.city}, {log.country_code}<br/>
+                              🎯 Target Port: {log.target_port}
+                            </div>
+                          </MapLib.Popup>
+                        </MapLib.Marker>
+                      )
                     }
                     return null;
                   })}

@@ -4,24 +4,24 @@
     "slug": "shadownet-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "assets/expo.icon/Assets/SNlogo.png",
     "scheme": "shadownetmobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "assets/expo.icon/Assets/SNlogo.png"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "assets/expo.icon/Assets/SNlogo.png",
+        "backgroundImage": "assets/expo.icon/Assets/SNlogo.png",
+        "monochromeImage": "assets/expo.icon/Assets/SNlogo.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "assets/expo.icon/Assets/SNlogo.png"
     },
     "plugins": [
       "expo-router",
@@ -30,7 +30,7 @@
         {
           "backgroundColor": "#208AEF",
           "android": {
-            "image": "./assets/images/splash-icon.png",
+            "image": "assets/expo.icon/Assets/SNlogo.png",
             "imageWidth": 76
           }
         }
